@@ -117,6 +117,10 @@ if code_to_display is None or display_to_code is None:
     st.stop()
 
 #display_to_code = {int(k): v for k, v in display_to_code.items()}
+st.write("display_to_code is None?", display_to_code is None)
+st.write("code_to_display is None?", code_to_display is None)
+if display_to_code is None:
+    st.stop()  # остановит выполнение, чтобы вы увидели сообщение
 display_options = sorted(display_to_code.keys())
 
 model = load_model()
