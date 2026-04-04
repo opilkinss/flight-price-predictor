@@ -85,26 +85,39 @@ def load_airport_names():
         st.error("Файл с названиями аэропортов не найден.")
         return None, None
     
-    df_names = pd.read_csv(names_path, dtype={'code': str})  # ← str сразу!
-    df_names['code'] = df_names['code'].astype(str).str.strip().str.upper()
-    df_names['display_name'] = df_names['display_name'].astype(str).str.strip()
-    df_names = df_names.dropna(subset=['code', 'display_name'])  # убираем NaN
-    df_names = df_names.drop_duplicates(subset=['display_name'], keep='first')
-    
-    # СЛОВАРИ с ЯВНЫМ int для code
-    code_to_display = {}
-    display_to_code = {}
-    
-    for _, row in df_names.iterrows():
-        code_int = int(float(row['code'])) if row['code'].isdigit() else row['code']
-        display = row['display_name']
+    try:
+        # ПРОСТОЕ чтение БЕЗ dtype!
+        df_names = pd.read_csv(names_path)
+        print("CSV загружен, строк:", len(df_names))  # DEBUG
         
-        code_to_display[code_int] = display
-        display_to_code[display] = code_int
-    
-    st.info(f"Загружено {len(display_to_code)} аэропортов")
-    return code_to_display, display_to_code
-
+        # ОЧИСТКА данных
+        df_names = df_names.dropna(subset=['code', 'display_name'])
+        df_names['code'] = df_names['code'].astype(str).str.strip().str.upper()
+        df_names['display_name'] = df_names['display_name'].astype(str).str.strip()
+        df_names = df_names[df_names['code'].str.len() > 0]  # не пустые
+        df_names = df_names.drop_duplicates(subset=['display_name'])
+        
+        print("После очистки строк:", len(df_names))  # DEBUG
+        
+        code_to_display = {}
+        display_to_code = {}
+        
+        for _, row in df_names.iterrows():
+            try:
+                code = str(row['code']).strip()
+                display = str(row['display_name']).strip()
+                code_to_display[code] = display
+                display_to_code[display] = code  # КЛЮЧ — display_name!
+            except:
+                continue
+        
+        st.success(f"✅ Загружено аэропортов: {len(display_to_code)}")
+        return code_to_display, display_to_code
+        
+    except Exception as e:
+        st.error(f"❌ Ошибка чтения airport_names.csv: {e}")
+        st.info("Проверьте формат файла!")
+        return None, None
 # ------------------------------
 # Средние расстояния и длительности (резерв)
 # ------------------------------
@@ -141,8 +154,7 @@ for k, v in display_to_code.items():
 if not display_to_code_fixed:
     display_to_code_fixed = {1: "Москва", 2: "СПб", 3: "Екатеринбург"}
 
-display_to_code = display_to_code_fixed
-display_options = sorted(display_to_code.keys())
+display_options = list(display_to_code.keys())  # названия аэропортов!
 
 model = load_model()
 if model is None:
