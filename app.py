@@ -116,12 +116,16 @@ code_to_display, display_to_code = load_airport_names()
 if code_to_display is None or display_to_code is None:
     st.stop()
 
+df_names['code'] = df_names['code'].astype(str).str.strip().str.upper()
+df_names = df_names[df_names['code'] != 'nan']
+df_names = df_names[df_names['code'] != '']
+
 #display_to_code = {int(k): v for k, v in display_to_code.items()}
 st.write("display_to_code is None?", display_to_code is None)
 st.write("code_to_display is None?", code_to_display is None)
 if display_to_code is None:
     st.stop()  # остановит выполнение, чтобы вы увидели сообщение
-display_options = sorted(display_to_code.keys())
+display_options = sorted(display_to_code.keys(), key=str)
 
 model = load_model()
 if model is None:
