@@ -82,49 +82,15 @@ def load_airport_coords():
 def load_airport_names():
     names_path = SCRIPT_DIR / 'airport_names.csv'
     if not names_path.exists():
-        st.error("❌ airport_names.csv не найден!")
-        return {}, {}
-    
-    try:
-        # СИЛЬНАЯ УСТОЙЧИВОСТЬ к битым CSV
-        df_names = pd.read_csv(
-            names_path, 
-            encoding='utf-8-sig',  # убирает BOM!
-            on_bad_lines='skip',   # пропускает битые строки
-            low_memory=False
-        )
-        
-        if df_names.empty:
-            st.error("❌ CSV пустой!")
-            return {}, {}
-        
-        # ЖЕСТКАЯ очистка
-        required_cols = ['code', 'display_name']
-        if not all(col in df_names.columns for col in required_cols):
-            st.error("❌ Нет колонок 'code' и 'display_name'")
-            return {}, {}
-        
-        df_names = df_names[required_cols].dropna()
-        df_names['code'] = df_names['code'].fillna('').astype(str).str.strip().str.upper()
-        df_names['display_name'] = df_names['display_name'].fillna('').astype(str).str.strip()
-        df_names = df_names[(df_names['code'] != '') & (df_names['display_name'] != '')]
-        df_names = df_names.drop_duplicates(subset='display_name')
-        
-        # СОЗДАНИЕ СЛОВАРЕЙ
-        code_to_display = {}
-        display_to_code = {}
-        for _, row in df_names.iterrows():
-            code = str(row['code']).strip()
-            display = str(row['display_name']).strip()
-            code_to_display[code] = display
-            display_to_code[display] = code
-        
-        st.success(f"✅ Загружено {len(display_to_code)} аэропортов")
-        return code_to_display, display_to_code
-        
-    except Exception as e:
-        st.error(f"❌ CSV ошибка: {str(e)[:80]}")
-        return {}, {}
+        st.error("Файл с названиями аэропортов не найден.")
+        return None, None
+    df_names = pd.read_csv(names_path)
+    df_names['code'] = df_names['code'].astype(str).str.strip().str.upper()
+    df_names['display_name'] = df_names['display_name'].astype(str).str.strip()
+    df_names = df_names.drop_duplicates(subset=['display_name'], keep='first')
+    code_to_display = dict(zip(df_names['code'], df_names['display_name']))
+    display_to_code = dict(zip(df_names['display_name'], df_names['code']))
+    return code_to_display, display_to_code
 
 # ------------------------------
 # Средние расстояния и длительности (резерв)
@@ -150,19 +116,8 @@ code_to_display, display_to_code = load_airport_names()
 if code_to_display is None or display_to_code is None:
     st.stop()
 
-# БЕЗОПАСНОЕ преобразование display_to_code
-display_to_code_fixed = {}
-for k, v in display_to_code.items():
-    try:
-        display_to_code_fixed[int(k)] = str(v)
-    except (ValueError, TypeError):
-        continue  # пропускаем битые ключи
-
-# Если словарь пустой — дефолт
-if not display_to_code_fixed:
-    display_to_code_fixed = {1: "Москва", 2: "СПб", 3: "Екатеринбург"}
-
-display_options = list(display_to_code.keys())  # названия аэропортов!
+#display_to_code = {int(k): v for k, v in display_to_code.items()}
+display_options = sorted(display_to_code.keys())
 
 model = load_model()
 if model is None:
