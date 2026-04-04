@@ -84,12 +84,25 @@ def load_airport_names():
     if not names_path.exists():
         st.error("Файл с названиями аэропортов не найден.")
         return None, None
-    df_names = pd.read_csv(names_path)
+    
+    df_names = pd.read_csv(names_path, dtype={'code': str})  # ← str сразу!
     df_names['code'] = df_names['code'].astype(str).str.strip().str.upper()
     df_names['display_name'] = df_names['display_name'].astype(str).str.strip()
+    df_names = df_names.dropna(subset=['code', 'display_name'])  # убираем NaN
     df_names = df_names.drop_duplicates(subset=['display_name'], keep='first')
-    code_to_display = dict(zip(df_names['code'], df_names['display_name']))
-    display_to_code = dict(zip(df_names['display_name'], df_names['code']))
+    
+    # СЛОВАРИ с ЯВНЫМ int для code
+    code_to_display = {}
+    display_to_code = {}
+    
+    for _, row in df_names.iterrows():
+        code_int = int(float(row['code'])) if row['code'].isdigit() else row['code']
+        display = row['display_name']
+        
+        code_to_display[code_int] = display
+        display_to_code[display] = code_int
+    
+    st.info(f"Загружено {len(display_to_code)} аэропортов")
     return code_to_display, display_to_code
 
 # ------------------------------
