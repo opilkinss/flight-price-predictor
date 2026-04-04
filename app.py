@@ -82,42 +82,50 @@ def load_airport_coords():
 def load_airport_names():
     names_path = SCRIPT_DIR / 'airport_names.csv'
     if not names_path.exists():
-        st.error("Файл с названиями аэропортов не найден.")
-        return None, None
+        st.error("❌ airport_names.csv не найден!")
+        return {}, {}
     
     try:
-        # ПРОСТОЕ чтение БЕЗ dtype!
-        df_names = pd.read_csv(names_path)
-        print("CSV загружен, строк:", len(df_names))  # DEBUG
+        # СИЛЬНАЯ УСТОЙЧИВОСТЬ к битым CSV
+        df_names = pd.read_csv(
+            names_path, 
+            encoding='utf-8-sig',  # убирает BOM!
+            on_bad_lines='skip',   # пропускает битые строки
+            low_memory=False
+        )
         
-        # ОЧИСТКА данных
-        df_names = df_names.dropna(subset=['code', 'display_name'])
-        df_names['code'] = df_names['code'].astype(str).str.strip().str.upper()
-        df_names['display_name'] = df_names['display_name'].astype(str).str.strip()
-        df_names = df_names[df_names['code'].str.len() > 0]  # не пустые
-        df_names = df_names.drop_duplicates(subset=['display_name'])
+        if df_names.empty:
+            st.error("❌ CSV пустой!")
+            return {}, {}
         
-        print("После очистки строк:", len(df_names))  # DEBUG
+        # ЖЕСТКАЯ очистка
+        required_cols = ['code', 'display_name']
+        if not all(col in df_names.columns for col in required_cols):
+            st.error("❌ Нет колонок 'code' и 'display_name'")
+            return {}, {}
         
+        df_names = df_names[required_cols].dropna()
+        df_names['code'] = df_names['code'].fillna('').astype(str).str.strip().str.upper()
+        df_names['display_name'] = df_names['display_name'].fillna('').astype(str).str.strip()
+        df_names = df_names[(df_names['code'] != '') & (df_names['display_name'] != '')]
+        df_names = df_names.drop_duplicates(subset='display_name')
+        
+        # СОЗДАНИЕ СЛОВАРЕЙ
         code_to_display = {}
         display_to_code = {}
-        
         for _, row in df_names.iterrows():
-            try:
-                code = str(row['code']).strip()
-                display = str(row['display_name']).strip()
-                code_to_display[code] = display
-                display_to_code[display] = code  # КЛЮЧ — display_name!
-            except:
-                continue
+            code = str(row['code']).strip()
+            display = str(row['display_name']).strip()
+            code_to_display[code] = display
+            display_to_code[display] = code
         
-        st.success(f"✅ Загружено аэропортов: {len(display_to_code)}")
+        st.success(f"✅ Загружено {len(display_to_code)} аэропортов")
         return code_to_display, display_to_code
         
     except Exception as e:
-        st.error(f"❌ Ошибка чтения airport_names.csv: {e}")
-        st.info("Проверьте формат файла!")
-        return None, None
+        st.error(f"❌ CSV ошибка: {str(e)[:80]}")
+        return {}, {}
+
 # ------------------------------
 # Средние расстояния и длительности (резерв)
 # ------------------------------
