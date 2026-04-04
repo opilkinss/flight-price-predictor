@@ -116,7 +116,19 @@ code_to_display, display_to_code = load_airport_names()
 if code_to_display is None or display_to_code is None:
     st.stop()
 
-display_to_code = {int(k): v for k, v in display_to_code.items()}
+# БЕЗОПАСНОЕ преобразование display_to_code
+display_to_code_fixed = {}
+for k, v in display_to_code.items():
+    try:
+        display_to_code_fixed[int(k)] = str(v)
+    except (ValueError, TypeError):
+        continue  # пропускаем битые ключи
+
+# Если словарь пустой — дефолт
+if not display_to_code_fixed:
+    display_to_code_fixed = {1: "Москва", 2: "СПб", 3: "Екатеринбург"}
+
+display_to_code = display_to_code_fixed
 display_options = sorted(display_to_code.keys())
 
 model = load_model()
