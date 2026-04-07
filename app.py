@@ -51,11 +51,28 @@ def load_data():
     if not data_path.exists():
         st.error(f"Файл данных не найден: {data_path}")
         return None
-    df = pd.read_csv(data_path)
-    df['depart_date'] = pd.to_datetime(df['depart_date'])
-    df['return_date'] = pd.to_datetime(df['return_date'])
-    df['collection_date'] = pd.to_datetime(df['collection_date'])
-    return df
+    try:
+        # Явно указываем разделитель и кодировку
+        df = pd.read_csv(data_path, sep=',', encoding='utf-8')
+        # Проверяем, что все нужные колонки есть
+        required_cols = ['origin', 'destination', 'depart_date', 'return_date', 'collection_date', 'distance', 'duration']
+        missing = [col for col in required_cols if col not in df.columns]
+        if missing:
+            st.error(f"В CSV отсутствуют столбцы: {missing}")
+            return None
+        # Конвертируем даты
+        df['depart_date'] = pd.to_datetime(df['depart_date'], errors='coerce')
+        df['return_date'] = pd.to_datetime(df['return_date'], errors='coerce')
+        df['collection_date'] = pd.to_datetime(df['collection_date'], errors='coerce')
+        # Удаляем строки с некорректными датами
+        before = len(df)
+        df = df.dropna(subset=['depart_date', 'return_date', 'collection_date'])
+        if len(df) < before:
+            st.warning(f"Удалено {before - len(df)} строк с некорректными датами.")
+        return df
+    except Exception as e:
+        st.error(f"Ошибка чтения CSV: {e}")
+        return None
 
 # ------------------------------
 # Загрузка координат аэропортов
