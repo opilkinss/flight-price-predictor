@@ -48,35 +48,15 @@ def load_model():
 def load_data():
     data_path = SCRIPT_DIR / 'flight_prices_week.csv'
     if not data_path.exists():
-        st.error(f"Файл не найден: {data_path}")
+        st.error(f"Файл данных не найден: {data_path}")
         return None
-
-    # 1. Проверим размер файла
-    file_size = data_path.stat().st_size
-    st.info(f"Размер файла: {file_size} байт")
-
-    # 2. Прочитаем первые 5 строк как текст
-    with open(data_path, 'r', encoding='utf-8') as f:
-        first_lines = [next(f) for _ in range(5)]
-    st.text("Первые 5 строк файла:")
-    st.code(''.join(first_lines))
-
-    # 3. Попробуем прочитать CSV с разными параметрами
-    try:
-        # Вариант: указать разделитель и кодировку
-        df = pd.read_csv(data_path, sep=',', encoding='utf-8')
-        st.success("CSV прочитан успешно!")
-        return df
-    except Exception as e:
-        st.error(f"Ошибка чтения: {e}")
-        # Попробуем прочитать с движком python (медленнее, но прощает ошибки)
-        try:
-            df = pd.read_csv(data_path, sep=',', encoding='utf-8', engine='python')
-            st.warning("Прочитано с engine='python'")
-            return df
-        except Exception as e2:
-            st.error(f"И с python-движком не вышло: {e2}")
-            return None
+    df = pd.read_csv(data_path, engine='python')
+    df['depart_date'] = pd.to_datetime(df['depart_date'])
+    df['return_date'] = pd.to_datetime(df['return_date'])
+    df['collection_date'] = pd.to_datetime(df['collection_date'])
+    df['origin'] = df['origin'].astype(str)
+    df['destination'] = df['destination'].astype(str)
+    return df
 # ------------------------------
 # Загрузка координат аэропортов
 # ------------------------------
@@ -86,7 +66,11 @@ def load_airport_coords():
     if not coords_path.exists():
         st.error("Файл с координатами аэропортов не найден.")
         return None
-    df = pd.read_csv(coords_path)
+    try:
+        df = pd.read_csv(coords_path, engine='python')
+    except Exception as e:
+        st.error(f"Ошибка чтения airports.csv: {e}")
+        return None
     df = df[df['code'].notna() & df['latitude'].notna() & df['longitude'].notna()].copy()
     df['code'] = df['code'].astype(str).str.strip().str.upper()
     df = df.drop_duplicates(subset=['code'], keep='first')
@@ -104,7 +88,11 @@ def load_airport_names():
     if not names_path.exists():
         st.error("Файл с названиями аэропортов не найден.")
         return None, None
-    df_names = pd.read_csv(names_path)
+    try:
+        df_names = pd.read_csv(names_path, engine='python')
+    except Exception as e:
+        st.error(f"Ошибка чтения airport_names.csv: {e}")
+        return None, None
     df_names['code'] = df_names['code'].astype(str).str.strip().str.upper()
     df_names['display_name'] = df_names['display_name'].astype(str).str.strip()
     df_names = df_names.drop_duplicates(subset=['display_name'], keep='first')
