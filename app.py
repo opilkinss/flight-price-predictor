@@ -48,17 +48,35 @@ def load_model():
 def load_data():
     data_path = SCRIPT_DIR / 'flight_prices_week.csv'
     if not data_path.exists():
-        st.error(f"Файл данных не найден: {data_path}")
+        st.error(f"Файл не найден: {data_path}")
         return None
-    df = pd.read_csv(data_path)
-    df['depart_date'] = pd.to_datetime(df['depart_date'])
-    df['return_date'] = pd.to_datetime(df['return_date'])
-    df['collection_date'] = pd.to_datetime(df['collection_date'])
-    # Приводим коды аэропортов к строкам
-    df['origin'] = df['origin'].astype(str)
-    df['destination'] = df['destination'].astype(str)
-    return df
 
+    # 1. Проверим размер файла
+    file_size = data_path.stat().st_size
+    st.info(f"Размер файла: {file_size} байт")
+
+    # 2. Прочитаем первые 5 строк как текст
+    with open(data_path, 'r', encoding='utf-8') as f:
+        first_lines = [next(f) for _ in range(5)]
+    st.text("Первые 5 строк файла:")
+    st.code(''.join(first_lines))
+
+    # 3. Попробуем прочитать CSV с разными параметрами
+    try:
+        # Вариант: указать разделитель и кодировку
+        df = pd.read_csv(data_path, sep=',', encoding='utf-8')
+        st.success("CSV прочитан успешно!")
+        return df
+    except Exception as e:
+        st.error(f"Ошибка чтения: {e}")
+        # Попробуем прочитать с движком python (медленнее, но прощает ошибки)
+        try:
+            df = pd.read_csv(data_path, sep=',', encoding='utf-8', engine='python')
+            st.warning("Прочитано с engine='python'")
+            return df
+        except Exception as e2:
+            st.error(f"И с python-движком не вышло: {e2}")
+            return None
 # ------------------------------
 # Загрузка координат аэропортов
 # ------------------------------
