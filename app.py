@@ -6,8 +6,7 @@ from catboost import CatBoostRegressor
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent
-# Фикс numpy int64 ключей
-np.int64 = int  # ← ЭТА СТРОКА РЕШАЕТ ПРОБЛЕМУ
+
 
 # ------------------------------
 # Функция гаверсинуса
@@ -51,28 +50,14 @@ def load_data():
     if not data_path.exists():
         st.error(f"Файл данных не найден: {data_path}")
         return None
-    try:
-        # Явно указываем разделитель и кодировку
-        df = pd.read_csv(data_path, sep=',', encoding='utf-8')
-        # Проверяем, что все нужные колонки есть
-        required_cols = ['origin', 'destination', 'depart_date', 'return_date', 'collection_date', 'distance', 'duration']
-        missing = [col for col in required_cols if col not in df.columns]
-        if missing:
-            st.error(f"В CSV отсутствуют столбцы: {missing}")
-            return None
-        # Конвертируем даты
-        df['depart_date'] = pd.to_datetime(df['depart_date'], errors='coerce')
-        df['return_date'] = pd.to_datetime(df['return_date'], errors='coerce')
-        df['collection_date'] = pd.to_datetime(df['collection_date'], errors='coerce')
-        # Удаляем строки с некорректными датами
-        before = len(df)
-        df = df.dropna(subset=['depart_date', 'return_date', 'collection_date'])
-        if len(df) < before:
-            st.warning(f"Удалено {before - len(df)} строк с некорректными датами.")
-        return df
-    except Exception as e:
-        st.error(f"Ошибка чтения CSV: {e}")
-        return None
+    df = pd.read_csv(data_path)
+    df['depart_date'] = pd.to_datetime(df['depart_date'])
+    df['return_date'] = pd.to_datetime(df['return_date'])
+    df['collection_date'] = pd.to_datetime(df['collection_date'])
+    # Приводим коды аэропортов к строкам
+    df['origin'] = df['origin'].astype(str)
+    df['destination'] = df['destination'].astype(str)
+    return df
 
 # ------------------------------
 # Загрузка координат аэропортов
@@ -114,12 +99,17 @@ def load_airport_names():
 # ------------------------------
 @st.cache_data
 def get_route_distances(df):
-    return df.groupby(['origin', 'destination'], as_index=False)['distance'].mean()
+    result = df.groupby(['origin', 'destination'], as_index=False)['distance'].mean()
+    result['origin'] = result['origin'].astype(str)
+    result['destination'] = result['destination'].astype(str)
+    return result
 
 @st.cache_data
 def get_route_durations(df):
-    return df.groupby(['origin', 'destination'], as_index=False)['duration'].mean()
-
+    result = df.groupby(['origin', 'destination'], as_index=False)['duration'].mean()
+    result['origin'] = result['origin'].astype(str)
+    result['destination'] = result['destination'].astype(str)
+    return result
 # ------------------------------
 # Основная часть
 # ------------------------------
@@ -163,8 +153,8 @@ with col2:
 
 # Если пользователь ещё не выбрал города, переменные будут None
 if origin_display and destination_display:
-    origin = display_to_code[origin_display]
-    destination = display_to_code[destination_display]
+    origin = str(display_to_code[origin_display])
+    destination = str(display_to_code[destination_display])
 else:
     origin = destination = None
 
